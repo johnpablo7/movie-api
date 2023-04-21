@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Movies } from "./components/Movies";
 import { useMovies } from "./hooks/useMovies";
+import debounce from "just-debounce-it";
 
 function useSearch() {
   const [search, updateSearch] = useState("");
@@ -35,16 +36,30 @@ function useSearch() {
 }
 
 function App() {
-  const { movies } = useMovies();
+  const [sort, setSort] = useState(false);
   const { search, updateSearch, error } = useSearch();
+  const { movies, getMovies, loading } = useMovies({ search, sort });
   // const inputRef = useRef();
   // console.log("render");
 
+  // console.log('En cada render ejecuto esto:');
+  const debouncedGetMovies = useCallback(
+    debounce((search) => {
+      console.log("search", search);
+      getMovies({ search });
+    }, 300),
+    [getMovies]
+  );
+
+  const handleSort = () => {
+    setSort(!sort);
+  };
+
   const handleSubmit = (event) => {
     event.preventDefault();
-    console.log({ search });
+    getMovies({ search });
+    // console.log({ search });
     // const { query } = Object.fromEntries(new window.FormData(event.target)); // Un input
-
     // const fields = Object.fromEntries(new window.FormData(event.target)); // Un useRef para muchos inputs
     // console.log(fields);
     // const value = inputRef.current.value; // Un useRef para cada input
@@ -52,49 +67,57 @@ function App() {
   };
 
   const handleChange = (event) => {
-    updateSearch(event.target.value);
+    const newSearch = event.target.value;
+    updateSearch(newSearch);
+    debouncedGetMovies(newSearch);
   };
 
-  return (
-    <div className="flex flex-col items-center justify-center xl:mx-container-side py-8 gap-8">
-      <header>
-        <h1 className="text-4xl text-center text-gray-800 font-semibold mb-6">
-          Buscador de Películas
-        </h1>
-        <form onSubmit={handleSubmit} className="flex items-center gap-4">
-          <input
-            onChange={handleChange}
-            value={search}
-            // ref={inputRef}
-            name="query"
-            type="text"
-            placeholder="Avengers, Star Wars, The Matrix..."
-            className="py-2 px-4 rounded-md border-1 border-blue-600 w-72"
-            // style={{
-            //   border: "1px solid transparent",
-            //   borderColor: error ? "red" : "transparent",
-            // }}
-          />
-          {/* <input
-            ref={inputRef}
-            name="name"
-            type="text"
-            placeholder="Avengers, Star Wars, The Matrix..."
-            className="py-2 px-4 rounded-md border-2 border-gray-900 w-72"
-          /> */}
-          <button
-            type="submit"
-            className="py-2 px-8 rounded bg-red-600 text-white font-semibold"
-          >
-            Buscar
-          </button>
-        </form>
-        {error && <p style={{ color: "red" }}>{error}</p>}
-      </header>
+  // useEffect(() => {
+  //   console.log("new getMovies received");
+  // }, [getMovies]);
 
-      <main>
-        <Movies movies={movies} />
-      </main>
+  return (
+    <div className="bg-slate-800">
+      <div className="flex flex-col items-center justify-center px-4 xl:mx-container-side py-8 gap-8">
+        <header>
+          <h1 className="text-3xl xl:text-4xl text-center text-white font-semibold mb-6">
+            Buscador de Películas
+          </h1>
+          <div className="flex flex-col gap-2">
+            <form
+              onSubmit={handleSubmit}
+              className="flex items-center gap-4 mb-2"
+            >
+              <input
+                onChange={handleChange}
+                value={search}
+                // ref={inputRef}
+                name="query"
+                type="text"
+                placeholder="Avengers, Star Wars, The Matrix..."
+                className="py-2 px-4 rounded-md border xl:w-72 outline-none xl:mb-1"
+                style={{
+                  borderColor: error ? "red" : "gray",
+                }}
+              />
+
+              <button
+                type="submit"
+                className="py-2 px-8 rounded bg-red-600 text-white font-semibold"
+              >
+                Buscar
+              </button>
+            </form>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" onChange={handleSort} checked={sort} />
+              <p className="text-white">Listar por fecha de Lanzamiento</p>
+            </div>
+          </div>
+          {error && <p style={{ color: "red" }}>{error}</p>}
+        </header>
+
+        <main>{loading ? <p>Cargando...</p> : <Movies movies={movies} />}</main>
+      </div>
     </div>
   );
 }
